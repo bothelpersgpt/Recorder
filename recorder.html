@@ -11,68 +11,83 @@
     <button id="stop-recording">Stop Recording and Download</button>
 
     <script>
-      const chunks = [];
-      let mediaRecorder;
-      let stream;
-
       const videoPreview = document.getElementById("video-preview");
       const startRecordingBtn = document.getElementById("start-recording");
       const stopRecordingBtn = document.getElementById("stop-recording");
+      let mediaRecorder;
+      let recordedBlobs = [];
 
-      async function startRecording() {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true,
+      // Check if browser supports getUserMedia and MediaRecorder
+      if (
+        navigator.mediaDevices.getUserMedia &&
+        window.MediaRecorder
+      ) {
+        const constraints = {
+          audio: true,
+          video: true,
+        };
+
+        navigator.mediaDevices.getUserMedia(constraints)
+          .then(stream => {
+            videoPreview.srcObject = stream;
+
+            const options = { mimeType: 'video/webm;codecs=vp9' };
+            mediaRecorder = new MediaRecorder(stream, options);
+
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.onstop = handleStop;
+          })
+          .catch(err => {
+            console.error("Error accessing camera and microphone:", err);
           });
 
-          videoPreview.srcObject = stream;
-
-          const options = { mimeType: "video/webm;codecs=vp9" };
-          mediaRecorder = new MediaRecorder(stream, options);
-
-          mediaRecorder.addEventListener("dataavailable", handleDataAvailable);
-          mediaRecorder.addEventListener("stop", handleStop);
-
+        startRecordingBtn.addEventListener("click", () => {
           startRecordingBtn.disabled = true;
           stopRecordingBtn.disabled = false;
-
+          recordedBlobs = [];
           mediaRecorder.start();
-        } catch (error) {
-          console.error("Error accessing camera and microphone:", error);
+        });
+
+        stopRecordingBtn.addEventListener("click", () => {
+          startRecordingBtn.disabled = false;
+          stopRecordingBtn.disabled = true;
+          mediaRecorder.stop();
+        });
+
+        function handleDataAvailable(event) {
+          if (event.data && event.data.size > 0) {
+            recordedBlobs.push(event.data);
+          }
         }
-      }
 
-      function stopRecording() {
-        mediaRecorder.stop();
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
-      function handleDataAvailable(event) {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
+        function handleStop(event) {
+          const blob = new Blob(recordedBlobs, { type: 'video/mp4' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          document.body.appendChild(a);
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'recorded-video.mp4';
+          a.click();
+          window.URL.revokeObjectURL(url);
         }
+      } else {
+        console.error(
+          "The getUserMedia API and/or MediaRecorder API are not supported in this browser"
+        );
       }
-
-      function handleStop() {
-        const blob = new Blob(chunks, { type: "video/mp4" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        document.body.appendChild(a);
-        a.style = "display: none";
-        a.href = url;
-        a.download = "recorded-video.mp4";
-        a.click();
-        window.URL.revokeObjectURL(url);
-
-        chunks.length = 0;
-
-        startRecordingBtn.disabled = false;
-        stopRecordingBtn.disabled = true;
-      }
-
-      startRecordingBtn.addEventListener("click", startRecording);
-      stopRecordingBtn.addEventListener("click", stopRecording);
     </script>
+  </body>
+</html>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Camera Recording</title>
+  </head>
+
+  <body>
+    <video id="video-preview" src="https://github.com/bothelpersgpt/vids-learn/blob/main/recorded-video%20(2).mp4" controls></video>
+    <a href="https://github.com/bothelpersgpt/vids-learn/blob/main/recorded-video%20(2).mp4" download>Learn to record</a>
   </body>
 </html>
